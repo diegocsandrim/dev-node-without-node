@@ -1,23 +1,38 @@
 #/bin/bash
 set -e
 
-HOST_PORT=${1:-3000}
+#Get parameters, fill defaults
+FROM_IMAGE=${1:-'node:4.4.3'}
+HOST_PORT=${2:-3000}
+
+#Get app name: this dir name
 APP_NAME=${PWD##*/}
 
-#Delete old container
+#Stop old container
 docker kill $APP_NAME || true
-docker rm $APP_NAME | true
+docker rm $APP_NAME || true
 
-#Build the new docker image
-docker build -t $APP_NAME .
+#Run the docker image, sharing your workdir
+docker run -di \
+  -w /usr/src/dev \
+  -p $HOST_PORT:3000 \
+  -v $(pwd):/usr/src/dev \
+  --name $APP_NAME \
+  $FROM_IMAGE /bin/bash
 
-#Run the docker image
-docker run -d -p $HOST_PORT:3000 -v $(pwd):/usr/src/$APP_NAME --name $APP_NAME $APP_NAME
+#Install dependences and run node
+docker exec -d $APP_NAME npm install
+docker exec -d $APP_NAME npm run dev
 
+#Know how to exit docker
 echo -e '\033[1;32mType ctrl+p+q to exit docker\033[0m'
 
-#Enter the container
+#Connect to the container, a machine with Node.js installed!
 docker exec -it $APP_NAME /bin/bash
 
-#Fix ownership of project files from docker to current user
-chown -R $USER .
+#Stop container
+docker kill $APP_NAME || true
+docker rm $APP_NAME || true
+
+#You are the owner of the files
+sudo chown -R $USER .
